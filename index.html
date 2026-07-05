@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MrB IFVG Grader</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<style>
+:root{
+  --bg:#0d0f14; --card:#161a22; --card2:#1d2230; --line:#2a3040;
+  --txt:#e8eaf0; --mut:#8b93a7; --red:#e2231a; --red2:#ff4d44;
+  --green:#22c55e; --amber:#f59e0b; --blue:#3b82f6;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:16px;}
+body{padding-bottom:calc(70px + env(safe-area-inset-bottom));}
+header{position:sticky; top:0; z-index:20; background:rgba(13,15,20,.92);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;}
+header h1{margin:0; font-size:18px; font-weight:800; letter-spacing:.3px;}
+header h1 span{color:var(--red2);}
+header .sub{font-size:11px; color:var(--mut); margin-top:2px;}
+.wrap{max-width:560px; margin:0 auto; padding:14px 14px 20px;}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:14px; margin-bottom:14px;}
+.card h2{margin:0 0 4px; font-size:14px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.6px; color:var(--mut);}
+.card h2 b{color:var(--txt);}
+/* questions */
+.q{margin-top:14px;}
+.q .qt{font-weight:700; font-size:15px; margin-bottom:2px;}
+.q .qd{font-size:12.5px; color:var(--mut); margin-bottom:8px; line-height:1.4;}
+.opts{display:flex; flex-direction:column; gap:6px;}
+.opt{display:flex; align-items:flex-start; gap:10px; background:var(--card2);
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer;
+  transition:border-color .15s, background .15s;}
+.opt input{margin-top:3px; accent-color:var(--red);}
+.opt .ol{font-size:14px; font-weight:600; line-height:1.3;}
+.opt .od{font-size:12px; color:var(--mut); line-height:1.35; margin-top:1px;}
+.opt.sel{border-color:var(--red); background:#241a1c;}
+.togglerow{display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--card2); border:1px solid var(--line); border-radius:10px;
+  padding:10px 12px; margin-top:8px;}
+.togglerow .tl{font-size:14px; font-weight:600;}
+.togglerow .td{font-size:12px; color:var(--mut); margin-top:1px;}
+.switch{position:relative; width:46px; height:26px; flex:none;}
+.switch input{opacity:0; width:0; height:0;}
+.slider{position:absolute; inset:0; background:#333a4d; border-radius:26px; transition:.2s; cursor:pointer;}
+.slider:before{content:""; position:absolute; height:20px; width:20px; left:3px; top:3px;
+  background:#fff; border-radius:50%; transition:.2s;}
+.switch input:checked + .slider{background:var(--red);}
+.switch input:checked + .slider:before{transform:translateX(20px);}
+/* gate */
+.gate-status{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.pill{font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px;
+  border:1px solid var(--line); background:var(--card2); color:var(--mut);}
+.pill.ok{border-color:var(--green); color:var(--green);}
+.pill.warn{border-color:var(--amber); color:var(--amber);}
+.pill.bad{border-color:var(--red2); color:var(--red2);}
+select,input[type=number],input[type=text]{width:100%; background:var(--card2);
+  border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:10px 12px;
+  font-size:15px; outline:none;}
+select:focus,input:focus{border-color:var(--red);}
+label.fl{display:block; font-size:12px; color:var(--mut); font-weight:600; margin:10px 0 4px;
+  text-transform:uppercase; letter-spacing:.5px;}
+/* result */
+#result{position:sticky; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:15;}
+.grade-card{border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:14px;
+  border:1px solid var(--line); background:linear-gradient(135deg,#1a1e29,#12141c);
+  box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.grade-badge{font-size:34px; font-weight:900; min-width:74px; text-align:center;
+  padding:8px 6px; border-radius:12px; letter-spacing:1px;}
+.g-aplus{background:#052e16; color:#4ade80; border:2px solid #22c55e;}
+.g-a{background:#052e16; color:#86efac; border:2px solid #16a34a;}
+.g-aminus{background:#1a2e05; color:#bef264; border:2px solid #84cc16;}
+.g-bplus{background:#2e2405; color:#fde047; border:2px solid #eab308;}
+.g-b{background:#2e1a05; color:#fdba74; border:2px solid #f97316;}
+.g-bminus{background:#2e0f05; color:#fca5a5; border:2px solid #ef4444;}
+.g-c{background:#2e0505; color:#f87171; border:2px solid #dc2626;}
+.g-none{background:var(--card2); color:var(--mut); border:2px dashed var(--line); font-size:22px;}
+.grade-info{flex:1;}
+.grade-verdict{font-weight:800; font-size:15px;}
+.grade-note{font-size:12px; color:var(--mut); margin-top:2px; line-height:1.35;}
+.smt-badge{display:inline-block; font-size:11px; font-weight:700; color:var(--blue);
+  border:1px solid var(--blue); padding:1px 7px; border-radius:10px; margin-top:4px;}
+.btn{display:block; width:100%; border:none; border-radius:12px; padding:13px;
+  font-size:15px; font-weight:700; cursor:pointer; margin-top:10px;}
+.btn-red{background:var(--red); color:#fff;}
+.btn-ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line);}
+.btn:disabled{opacity:.4;}
+.row2{display:flex; gap:10px;}
+.row2 > *{flex:1;}
+/* tabs */
+nav{position:fixed; bottom:0; left:0; right:0; z-index:30; display:flex;
+  background:rgba(13,15,20,.95); backdrop-filter:blur(10px);
+  border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);}
+nav button{flex:1; background:none; border:none; color:var(--mut); font-size:11px;
+  font-weight:700; padding:9px 0 8px; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:3px;}
+nav button svg{width:22px; height:22px; stroke:currentColor;}
+nav button.active{color:var(--red2);}
+.tab{display:none;}
+.tab.active{display:block;}
+/* journal */
+.stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+.stat{background:var(--card2); border:1px solid var(--line); border-radius:10px;
+  padding:10px 8px; text-align:center;}
+.stat .sv{font-size:20px; font-weight:800;}
+.stat .sl{font-size:10.5px; color:var(--mut); text-transform:uppercase; letter-spacing:.4px; margin-top:2px;}
+table{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px;}
+th{color:var(--mut); text-align:left; font-size:11px; text-transform:uppercase;
+  letter-spacing:.4px; padding:6px 6px; border-bottom:1px solid var(--line);}
+td{padding:7px 6px; border-bottom:1px solid var(--line);}
+.entry{background:var(--card2); border:1px solid var(--line); border-radius:12px;
+  padding:11px 12px; margin-top:8px;}
+.entry .e-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.entry .e-grade{font-weight:900; font-size:16px;}
+.entry .e-sym{font-weight:700; font-size:14px;}
+.entry .e-dir{font-size:11px; font-weight:700; padding:1px 8px; border-radius:8px;}
+.dir-long{background:#052e16; color:#4ade80;}
+.dir-short{background:#2e0505; color:#f87171;}
+.entry .e-date{font-size:11px; color:var(--mut); margin-left:auto;}
+.entry .e-notes{font-size:12.5px; color:var(--mut); margin-top:5px; line-height:1.4;}
+.entry .e-actions{display:flex; gap:8px; margin-top:8px; align-items:center;}
+.entry select{width:auto; padding:5px 8px; font-size:12.5px; border-radius:8px;}
+.entry input[type=number]{width:70px; padding:5px 8px; font-size:12.5px; border-radius:8px;}
+.e-del{margin-left:auto; background:none; border:none; color:var(--red2); font-size:12px;
+  font-weight:700; cursor:pointer;}
+.outcome-win{color:var(--green); font-weight:800;}
+.outcome-loss{color:var(--red2); font-weight:800;}
+.outcome-be{color:var(--amber); font-weight:800;}
+.outcome-pending{color:var(--mut);}
+/* rules accordion */
+details{background:var(--card2); border:1px solid var(--line); border-radius:12px;
+  margin-top:8px; overflow:hidden;}
+summary{padding:12px 14px; font-weight:800; font-size:15px; cursor:pointer; list-style:none;
+  display:flex; align-items:center; gap:10px;}
+summary::-webkit-details-marker{display:none;}
+summary .gm{font-size:18px; font-weight:900; min-width:38px;}
+details .body{padding:0 14px 12px; font-size:13px; color:var(--txt); line-height:1.5;}
+details .body ul{margin:6px 0; padding-left:18px;}
+details .body li{margin-bottom:7px;}
+details .body li b{display:block;}
+details .body li span{color:var(--mut); font-size:12.5px;}
+.callout{background:#241a1c; border:1px solid var(--red); border-radius:12px;
+  padding:12px 14px; font-size:13px; line-height:1.5; margin-top:10px;}
+.callout b{color:var(--red2);}
+.risk-out{background:var(--card2); border:1px solid var(--line); border-radius:12px;
+  padding:14px; margin-top:12px; text-align:center;}
+.risk-out .big{font-size:36px; font-weight:900; color:var(--red2);}
+.risk-out .lbl{font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
+.risk-detail{display:flex; justify-content:space-around; margin-top:10px; font-size:13px;}
+.risk-detail div{text-align:center;}
+.risk-detail .v{font-weight:800; font-size:15px;}
+.risk-detail .l{font-size:10.5px; color:var(--mut); text-transform:uppercase;}
+.muted-note{font-size:11.5px; color:var(--mut); margin-top:8px; line-height:1.4;}
+/* screenshots */
+.shots{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+.shot{position:relative; width:72px; height:72px; border-radius:8px; overflow:hidden;
+  border:1px solid var(--line); flex:none;}
+.shot img{width:100%; height:100%; object-fit:cover; display:block; cursor:pointer;}
+.shot .sx{position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%;
+  background:rgba(0,0,0,.7); color:#fff; border:none; font-size:11px; line-height:18px;
+  padding:0; cursor:pointer;}
+.e-addshot{background:var(--card); border:1px dashed var(--line); color:var(--mut);
+  border-radius:8px; padding:5px 10px; font-size:12.5px; font-weight:600; cursor:pointer;}
+#viewer{position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.93); display:none;
+  align-items:center; justify-content:center; padding:16px;}
+#viewer.open{display:flex;}
+#viewer img{max-width:100%; max-height:100%; border-radius:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>MrB <span>IFVG Grader</span></h1>
+  <div class="sub">MrB's rating system &middot; A+ to C &middot; grade before you click</div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ GRADE TAB ============ -->
+<div class="tab active" id="tab-grade">
+
+  <div class="card" id="gate-card">
+    <h2>Pre-Trade Gate</h2>
+    <div class="gate-status" id="gate-pills"></div>
+    <label class="fl">Daily bias</label>
+    <select id="g-bias">
+      <option value="">No clear bias</option>
+      <option value="long">Bullish — looking for longs</option>
+      <option value="short">Bearish — looking for shorts</option>
+    </select>
+    <div class="togglerow">
+      <div><div class="tl">Red-folder news checked</div>
+      <div class="td">No trades into high-impact news</div></div>
+      <label class="switch"><input type="checkbox" id="g-news"><span class="slider"></span></label>
+    </div>
+    <div class="togglerow">
+      <div><div class="tl">Waiting for candle close</div>
+      <div class="td">Body must close through the iFVG — no wick entries</div></div>
+      <label class="switch"><input type="checkbox" id="g-close"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Rate the setup <b id="dir-label"></b></h2>
+
+    <div class="q" style="margin-top:6px">
+      <div class="qt">1. Liquidity sweep &amp; delivery from FVG</div>
+      <div class="qd">Did price sweep liquidity and/or deliver from another FVG (bodies respecting it)?</div>
+      <div class="opts" data-q="sweep">
+        <label class="opt"><input type="radio" name="sweep" value="0"><div><div class="ol">BOTH — sweep AND delivery from FVG</div><div class="od">Bodies respect the delivering FVG absolutely perfectly</div></div></label>
+        <label class="opt"><input type="radio" name="sweep" value="1"><div><div class="ol">ONE — sweep OR delivery, not both</div></div></label>
+        <label class="opt"><input type="radio" name="sweep" value="3"><div><div class="ol">Neither, but aligned with bias</div><div class="od">No major sweep, not delivering from anywhere</div></div></label>
+        <label class="opt"><input type="radio" name="sweep" value="5"><div><div class="ol">Neither — trading in the middle of nowhere</div></div></label>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="qt">2. Momentum through the iFVG</div>
+      <div class="qd">How did price break through the gap?</div>
+      <div class="opts" data-q="momo">
+        <label class="opt"><input type="radio" name="momo" value="0"><div><div class="ol">Strong momentum, NO chop</div><div class="od">Quick reaction to the low/high</div></div></label>
+        <label class="opt"><input type="radio" name="momo" value="1"><div><div class="ol">Good momentum on the break</div><div class="od">Not instant, but clean — no chop</div></div></label>
+        <label class="opt"><input type="radio" name="momo" value="2"><div><div class="ol">Momentum with SOME chop</div><div class="od">Body closed fully over/under the FVG</div></div></label>
+        <label class="opt"><input type="radio" name="momo" value="3"><div><div class="ol">Momentum with a LOT of chop</div></div></label>
+        <label class="opt"><input type="radio" name="momo" value="4"><div><div class="ol">Low / very little momentum</div><div class="od">Bad conditions or low volume</div></div></label>
+        <label class="opt"><input type="radio" name="momo" value="5"><div><div class="ol">Erratic — momentum unpredictable</div></div></label>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="qt">3. Target</div>
+      <div class="qd">One of the 7: EQH, EQL, ITH, ITL, Data High, Data Low, trendline liquidity (LRLR)</div>
+      <div class="opts" data-q="target">
+        <label class="opt"><input type="radio" name="target" value="0"><div><div class="ol">Clear target (one of the 7)</div></div></label>
+        <label class="opt"><input type="radio" name="target" value="4"><div><div class="ol">Target exists but R:R sucks</div></div></label>
+        <label class="opt"><input type="radio" name="target" value="5"><div><div class="ol">No real target</div></div></label>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="qt">4. Premium / Discount</div>
+      <div class="qd">Longs should be in discount, shorts in premium of the range</div>
+      <div class="opts" data-q="pd">
+        <label class="opt"><input type="radio" name="pd" value="0"><div><div class="ol">Aligned</div><div class="od">Long in discount / short in premium</div></div></label>
+        <label class="opt"><input type="radio" name="pd" value="2"><div><div class="ol">Not aligned, but setup is obvious</div><div class="od">Long in premium / short in discount</div></div></label>
+        <label class="opt"><input type="radio" name="pd" value="4"><div><div class="ol">Way too extended</div><div class="od">Way too high/low in the daily range to take this direction</div></div></label>
+      </div>
+    </div>
+
+    <div class="togglerow">
+      <div><div class="tl">SMT divergence present</div><div class="td">Bonus confluence — doesn't change grade</div></div>
+      <label class="switch"><input type="checkbox" id="g-smt"><span class="slider"></span></label>
+    </div>
+    <div class="togglerow">
+      <div><div class="tl">Choppy / bad day overall</div><div class="td">A drops to A−, A− drops to B+</div></div>
+      <label class="switch"><input type="checkbox" id="g-choppy"><span class="slider"></span></label>
+    </div>
+
+    <button class="btn btn-ghost" id="btn-reset">Reset checklist</button>
+  </div>
+
+  <div id="result">
+    <div class="grade-card">
+      <div class="grade-badge g-none" id="grade-badge">–</div>
+      <div class="grade-info">
+        <div class="grade-verdict" id="grade-verdict">Answer all 5 questions</div>
+        <div class="grade-note" id="grade-note">Your setup grade appears here.</div>
+        <div id="smt-badge" style="display:none" class="smt-badge">+ SMT confluence</div>
+      </div>
+    </div>
+    <button class="btn btn-red" id="btn-log" disabled>Log this setup to journal</button>
+  </div>
+</div>
+
+<!-- ============ RISK TAB ============ -->
+<div class="tab" id="tab-risk">
+  <div class="card">
+    <h2>Position Size Calculator</h2>
+    <label class="fl">Account size ($)</label>
+    <input type="number" id="r-acct" inputmode="decimal" placeholder="e.g. 50000">
+    <div class="row2">
+      <div>
+        <label class="fl">Risk per trade (%)</label>
+        <input type="number" id="r-pct" inputmode="decimal" value="1" step="0.25">
+      </div>
+      <div>
+        <label class="fl">Stop size (points)</label>
+        <input type="number" id="r-stop" inputmode="decimal" placeholder="e.g. 25">
+      </div>
+    </div>
+    <label class="fl">Contract</label>
+    <select id="r-sym">
+      <option value="20" data-n="NQ">NQ — $20 / point</option>
+      <option value="2" data-n="MNQ" selected>MNQ — $2 / point</option>
+      <option value="50" data-n="ES">ES — $50 / point</option>
+      <option value="5" data-n="MES">MES — $5 / point</option>
+      <option value="5" data-n="YM">YM — $5 / point</option>
+      <option value="0.5" data-n="MYM">MYM — $0.50 / point</option>
+      <option value="100" data-n="GC">GC — $100 / point</option>
+      <option value="10" data-n="MGC">MGC — $10 / point</option>
+    </select>
+    <div class="risk-out">
+      <div class="lbl">Contracts</div>
+      <div class="big" id="r-contracts">–</div>
+      <div class="risk-detail">
+        <div><div class="v" id="r-riskusd">–</div><div class="l">Max risk</div></div>
+        <div><div class="v" id="r-actual">–</div><div class="l">Actual risk</div></div>
+        <div><div class="v" id="r-perct">–</div><div class="l">$ / contract</div></div>
+      </div>
+    </div>
+    <div class="muted-note">Grade-based sizing: A+ / A full size &middot; A− / B+ consider 50–75% &middot; B and below: no trade. Inputs are saved on this device.</div>
+  </div>
+</div>
+
+<!-- ============ JOURNAL TAB ============ -->
+<div class="tab" id="tab-journal">
+  <div class="card">
+    <h2>Performance by grade</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="sv" id="s-total">0</div><div class="sl">Trades</div></div>
+      <div class="stat"><div class="sv" id="s-wr">–</div><div class="sl">Win rate</div></div>
+      <div class="stat"><div class="sv" id="s-avgr">–</div><div class="sl">Avg R</div></div>
+    </div>
+    <table id="grade-table">
+      <thead><tr><th>Grade</th><th>Trades</th><th>Win %</th><th>Avg R</th><th>Total R</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="muted-note">This table is the whole point — it proves whether your A+ setups actually outperform your B setups. If they don't, your grading is off.</div>
+  </div>
+  <div class="card">
+    <h2>Logged setups</h2>
+    <div id="entries"></div>
+    <button class="btn btn-ghost" id="btn-export">Export CSV</button>
+  </div>
+</div>
+
+<!-- ============ RULES TAB ============ -->
+<div class="tab" id="tab-rules">
+  <div class="card">
+    <h2>Setup ratings reference</h2>
+
+    <details>
+      <summary><span class="gm" style="color:#4ade80">A+</span> The perfect setup</summary>
+      <div class="body"><ul>
+        <li><b>Liquidity sweep AND delivery from FVG</b><span>Both: sweep and delivery from another FVG where bodies respect it absolutely perfectly</span></li>
+        <li><b>Momentum with NO chop</b><span>Strong momentum through the iFVG, quick reaction to the low/high</span></li>
+        <li><b>Targets are clear</b><span>EQH, EQL, ITH, ITL, Data Highs, Data Lows, or LRLR</span></li>
+        <li><b>FVG is singular</b><span>If not, check another TF to see if combined they are</span></li>
+        <li><b>Premium/Discount</b><span>Longs in discount, shorts in premium (SMTs a bonus)</span></li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary><span class="gm" style="color:#86efac">A</span> Strong setup</summary>
+      <div class="body"><ul>
+        <li><b>Liquidity sweep OR delivery from FVG</b><span>Either one, not both</span></li>
+        <li><b>Momentum</b><span>Doesn't need momentum right away like A+, but still good momentum on the break (no chop)</span></li>
+        <li><b>Targets are clear</b><span>One of the 7</span></li>
+        <li><b>FVG is singular</b></li>
+        <li><b>Premium/Discount</b><span>Delivery FVG must be an obvious FVG in discount (longs) or premium (shorts)</span></li>
+      </ul><i style="color:var(--mut)">Normal A setups on choppy bad days will be A−</i></div>
+    </details>
+
+    <details>
+      <summary><span class="gm" style="color:#bef264">A− / B+</span> Tradeable</summary>
+      <div class="body"><ul>
+        <li><b>Liquidity sweep OR delivery from FVG</b></li>
+        <li><b>Momentum with some chop</b><span>Trade can't take place until the body closes fully over/under the FVG</span></li>
+        <li><b>Targets are clear</b></li>
+        <li><b>FVG is singular</b></li>
+        <li><b>Premium/Discount may be off</b><span>Longs may be in premium, shorts may be in discount</span></li>
+      </ul><i style="color:var(--mut)">B+ = an A− on a very choppy/bad day where the gap itself looks super obvious but conditions aren't amazing</i></div>
+    </details>
+
+    <details>
+      <summary><span class="gm" style="color:#fdba74">B</span> Risky</summary>
+      <div class="body"><ul>
+        <li><b>No sweep and/or no delivery</b><span>Not delivering from anywhere, no sweep — may go along with bias still</span></li>
+        <li><b>Momentum with a lot of chop</b></li>
+        <li><b>Target exists but unlikely to have multiple confluences</b></li>
+        <li><b>Singular FVG may not be obvious</b></li>
+        <li><b>Longs in premium / shorts in discount</b></li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary><span class="gm" style="color:#fca5a5">B−</span> Avoid</summary>
+      <div class="body"><ul>
+        <li><b>No major sweep or delivery</b><span>Works sometimes if bias is right</span></li>
+        <li><b>Low momentum with chop</b><span>Bad conditions or low volume</span></li>
+        <li><b>No real targets</b><span>R:R sucks</span></li>
+        <li><b>FVG won't be obvious</b><span>Messy PA, violating inverses back up and down</span></li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary><span class="gm" style="color:#f87171">C</span> Do not trade</summary>
+      <div class="body"><ul>
+        <li><b>No sweep, no delivery</b><span>Trading in the middle of nowhere — does not make sense to take</span></li>
+        <li><b>Momentum unpredictable</b></li>
+        <li><b>No targets, no bias</b><span>Something else is holding price that makes the setup irrelevant</span></li>
+        <li><b>Forcing an FVG just to take a trade</b></li>
+      </ul></div>
+    </details>
+
+    <div class="callout"><b>Golden rule:</b> A− / B+ and above = tradeable. B and below = stand down. The best trade you'll take this week might be the one you skip.</div>
+  </div>
+
+  <div class="card">
+    <h2>Killzones (New York time)</h2>
+    <table>
+      <thead><tr><th>Session</th><th>Time (NY)</th></tr></thead>
+      <tbody>
+        <tr><td>London KZ</td><td>02:00 – 05:00</td></tr>
+        <tr><td>NY AM KZ</td><td>09:30 – 11:00</td></tr>
+        <tr><td>NY Lunch (avoid)</td><td>12:00 – 13:00</td></tr>
+        <tr><td>NY PM KZ</td><td>13:30 – 16:00</td></tr>
+        <tr><td>Asia KZ</td><td>20:00 – 00:00</td></tr>
+      </tbody>
+    </table>
+    <h2 style="margin-top:16px">Common macro windows</h2>
+    <table>
+      <tbody>
+        <tr><td>09:50 – 10:10</td><td>NY AM macro</td></tr>
+        <tr><td>10:50 – 11:10</td><td>Late AM macro</td></tr>
+        <tr><td>13:10 – 13:40</td><td>PM macro</td></tr>
+        <tr><td>15:15 – 15:45</td><td>Final hour macro</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<div id="viewer"><img alt="screenshot"></div>
+<input type="file" id="shot-input" accept="image/*" multiple style="display:none">
+
+<nav>
+  <button class="active" data-tab="grade"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Grade</button>
+  <button data-tab="risk"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4"/></svg>Risk</button>
+  <button data-tab="journal"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Journal</button>
+  <button data-tab="rules"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Rules</button>
+</nav>
+
+<script>
+"use strict";
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const LS_J = 'ifvg_journal_v1', LS_R = 'ifvg_risk_v1';
+
+// ---------- tabs ----------
+$$('nav button').forEach(b => b.addEventListener('click', () => {
+  $$('nav button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  $('#tab-' + b.dataset.tab).classList.add('active');
+  if (b.dataset.tab === 'journal') renderJournal();
+}));
+
+// ---------- pre-trade gate ----------
+function nyNow(){
+  const p = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false,weekday:'short'}).formatToParts(new Date());
+  const get = t => p.find(x=>x.type===t).value;
+  return {h:+get('hour')%24, m:+get('minute'), d:get('weekday')};
+}
+function killzone(){
+  const {h,m} = nyNow(); const t = h*60+m;
+  const zones = [
+    ['London KZ',120,300],['NY AM KZ',570,660],['NY Lunch — avoid',720,780],
+    ['NY PM KZ',810,960],['Asia KZ',1200,1440],['Asia KZ',0,0]
+  ];
+  for (const [n,a,b] of zones) if (t>=a && t<b) return n;
+  return null;
+}
+function renderGate(){
+  const pills = [];
+  const bias = $('#g-bias').value;
+  pills.push(bias
+    ? `<span class="pill ok">Bias: ${bias.toUpperCase()}</span>`
+    : `<span class="pill bad">No bias set</span>`);
+  pills.push($('#g-news').checked
+    ? `<span class="pill ok">News checked</span>`
+    : `<span class="pill warn">News not checked</span>`);
+  pills.push($('#g-close').checked
+    ? `<span class="pill ok">Candle-close entry</span>`
+    : `<span class="pill warn">Confirm candle close</span>`);
+  const kz = killzone();
+  const {h,m} = nyNow();
+  const clock = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} NY`;
+  pills.push(kz
+    ? (kz.includes('avoid')
+        ? `<span class="pill warn">${clock} — ${kz}</span>`
+        : `<span class="pill ok">${clock} — ${kz}</span>`)
+    : `<span class="pill warn">${clock} — outside killzones</span>`);
+  $('#gate-pills').innerHTML = pills.join('');
+  $('#dir-label').textContent = bias ? (bias==='long'?'— LONG':'— SHORT') : '';
+}
+['g-bias','g-news','g-close'].forEach(id => $('#'+id).addEventListener('change', ()=>{renderGate(); grade();}));
+renderGate();
+setInterval(renderGate, 30000);
+
+// ---------- grading ----------
+const GRADES = ['A+','A','A-','B','B-','C'];
+const CLASSES = {'A+':'g-aplus','A':'g-a','A-':'g-aminus','B+':'g-bplus','B':'g-b','B-':'g-bminus','C':'g-c'};
+const VERDICTS = {
+  'A+': ['TAKE THE TRADE — full size','Sweep + delivery, clean momentum, clear target. This is the one you wait for.'],
+  'A':  ['Take the trade','Strong setup. Good momentum on the break, clear target.'],
+  'A-': ['Tradeable','Solid, but manage expectations — some chop or P/D misalignment.'],
+  'B+': ['Tradeable — reduce size','A− quality gap on a choppy/bad day. Obvious gap, poor conditions.'],
+  'B':  ['Skip unless strongly with bias','No sweep or delivery. If you must, cut size hard and demand the target.'],
+  'B-': ['NO TRADE','Low momentum, no real target, messy FVG. Stand down.'],
+  'C':  ['NO TRADE — walk away','Middle of nowhere. Forcing an FVG to justify a trade. Close the DOM.']
+};
+let currentGrade = null;
+
+function answers(){
+  const out = {};
+  for (const q of ['sweep','momo','target','pd']){
+    const el = document.querySelector(`input[name="${q}"]:checked`);
+    out[q] = el ? +el.value : null;
+  }
+  return out;
+}
+function grade(){
+  const a = answers();
+  const vals = Object.values(a);
+  // highlight selected options
+  $$('.opt').forEach(o => o.classList.toggle('sel', o.querySelector('input').checked));
+  $('#smt-badge').style.display = $('#g-smt').checked ? 'inline-block' : 'none';
+  if (vals.some(v => v === null)){
+    const n = vals.filter(v=>v!==null).length;
+    setBadge(null, `Answer all 4 questions (${n}/4)`, 'Your setup grade appears here.');
+    $('#btn-log').disabled = true;
+    currentGrade = null;
+    return;
+  }
+  let tier = Math.max(...vals);
+  let g = GRADES[tier];
+  // choppy day downgrade: A -> A-, A- -> B+
+  if ($('#g-choppy').checked){
+    if (g === 'A') g = 'A-';
+    else if (g === 'A-') g = 'B+';
+  }
+  currentGrade = g;
+  const [v, note] = VERDICTS[g];
+  let extra = '';
+  if (!$('#g-bias').value && tier <= 2) extra = ' ⚠ No bias set — even good setups fail against the draw.';
+  setBadge(g, v, note + extra);
+  $('#btn-log').disabled = false;
+}
+function setBadge(g, verdict, note){
+  const b = $('#grade-badge');
+  b.className = 'grade-badge ' + (g ? CLASSES[g] : 'g-none');
+  b.textContent = g || '–';
+  $('#grade-verdict').textContent = verdict;
+  $('#grade-note').textContent = note;
+}
+$$('.opts input, #g-smt, #g-choppy').forEach(el => el.addEventListener('change', grade));
+$('#btn-reset').addEventListener('click', () => {
+  $$('.opts input').forEach(i => i.checked = false);
+  $('#g-smt').checked = false; $('#g-choppy').checked = false;
+  grade();
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+// ---------- journal ----------
+function loadJ(){ try{ return JSON.parse(localStorage.getItem(LS_J)) || []; }catch(e){ return []; } }
+function saveJ(j){ localStorage.setItem(LS_J, JSON.stringify(j)); }
+
+$('#btn-log').addEventListener('click', () => {
+  if (!currentGrade) return;
+  const sym = ($('#r-sym').selectedOptions[0]||{}).dataset ? $('#r-sym').selectedOptions[0].dataset.n : 'NQ';
+  const bias = $('#g-bias').value;
+  const j = loadJ();
+  j.unshift({
+    id: Date.now(),
+    date: new Date().toISOString(),
+    symbol: sym,
+    dir: bias || '—',
+    grade: currentGrade,
+    smt: $('#g-smt').checked,
+    outcome: 'pending',
+    r: null,
+    notes: ''
+  });
+  saveJ(j);
+  $$('nav button').find(b => b.dataset.tab==='journal').click();
+});
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' +
+         d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+function renderJournal(){
+  const j = loadJ();
+  // stats
+  const closed = j.filter(e => e.outcome==='win'||e.outcome==='loss'||e.outcome==='be');
+  const wins = closed.filter(e=>e.outcome==='win').length;
+  const rs = closed.filter(e=>typeof e.r==='number');
+  $('#s-total').textContent = j.length;
+  $('#s-wr').textContent = closed.length ? Math.round(100*wins/closed.length)+'%' : '–';
+  $('#s-avgr').textContent = rs.length ? (rs.reduce((s,e)=>s+e.r,0)/rs.length).toFixed(2)+'R' : '–';
+  // per grade
+  const order = ['A+','A','A-','B+','B','B-','C'];
+  const tb = $('#grade-table tbody'); tb.innerHTML = '';
+  for (const g of order){
+    const rows = j.filter(e=>e.grade===g);
+    if (!rows.length) continue;
+    const cl = rows.filter(e=>e.outcome==='win'||e.outcome==='loss'||e.outcome==='be');
+    const w = cl.filter(e=>e.outcome==='win').length;
+    const rr = cl.filter(e=>typeof e.r==='number');
+    const avg = rr.length ? (rr.reduce((s,e)=>s+e.r,0)/rr.length).toFixed(2) : '–';
+    const tot = rr.length ? rr.reduce((s,e)=>s+e.r,0).toFixed(1) : '–';
+    tb.insertAdjacentHTML('beforeend',
+      `<tr><td><b>${g}</b></td><td>${rows.length}</td><td>${cl.length?Math.round(100*w/cl.length)+'%':'–'}</td><td>${avg}</td><td>${tot}</td></tr>`);
+  }
+  // entries
+  const box = $('#entries'); box.innerHTML = '';
+  if (!j.length){ box.innerHTML = '<div class="muted-note">No setups logged yet. Grade a setup and tap "Log this setup".</div>'; return; }
+  for (const e of j){
+    const div = document.createElement('div');
+    div.className = 'entry';
+    div.innerHTML = `
+      <div class="e-top">
+        <span class="e-grade">${e.grade}</span>
+        <span class="e-sym">${e.symbol}</span>
+        ${e.dir!=='—' ? `<span class="e-dir dir-${e.dir}">${e.dir.toUpperCase()}</span>` : ''}
+        ${e.smt ? '<span class="smt-badge" style="margin:0">SMT</span>' : ''}
+        <span class="e-date">${fmtDate(e.date)}</span>
+      </div>
+      <div class="e-actions">
+        <select data-act="outcome">
+          <option value="pending" ${e.outcome==='pending'?'selected':''}>Pending</option>
+          <option value="win" ${e.outcome==='win'?'selected':''}>Win</option>
+          <option value="loss" ${e.outcome==='loss'?'selected':''}>Loss</option>
+          <option value="be" ${e.outcome==='be'?'selected':''}>Break-even</option>
+        </select>
+        <input type="number" data-act="r" step="0.1" placeholder="R" value="${e.r ?? ''}">
+        <button class="e-del" data-act="del">Delete</button>
+      </div>
+      <input type="text" data-act="notes" placeholder="Notes…" value="${(e.notes||'').replace(/"/g,'&quot;')}" style="margin-top:8px; font-size:13px; padding:7px 10px;">
+      <div class="shots" data-shots>
+        <button class="e-addshot" data-act="shot">📷 Add screenshot</button>
+      </div>
+    `;
+    div.querySelector('[data-act=outcome]').addEventListener('change', ev => update(e.id, {outcome: ev.target.value}));
+    div.querySelector('[data-act=r]').addEventListener('change', ev => update(e.id, {r: ev.target.value===''?null:+ev.target.value}));
+    div.querySelector('[data-act=notes]').addEventListener('change', ev => update(e.id, {notes: ev.target.value}, false));
+    div.querySelector('[data-act=del]').addEventListener('click', () => {
+      if (confirm('Delete this entry?')){
+        saveJ(loadJ().filter(x=>x.id!==e.id));
+        delShotsFor(e.id);
+        renderJournal();
+      }
+    });
+    div.querySelector('[data-act=shot]').addEventListener('click', () => {
+      shotTarget = e.id;
+      $('#shot-input').click();
+    });
+    renderShots(e.id, div.querySelector('[data-shots]'));
+    box.appendChild(div);
+  }
+}
+
+// ---------- screenshots (IndexedDB) ----------
+let shotTarget = null;
+function shotDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('ifvg_shots', 1);
+    r.onupgradeneeded = () => {
+      const s = r.result.createObjectStore('shots', {keyPath:'sid', autoIncrement:true});
+      s.createIndex('byEntry', 'entryId');
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function compressImage(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1400;
+      let {width:w, height:h} = img;
+      if (Math.max(w,h) > MAX){ const k = MAX/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob(b => b ? res(b) : rej(new Error('compress failed')), 'image/jpeg', 0.82);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function addShots(entryId, files){
+  const db = await shotDB();
+  for (const f of files){
+    const blob = await compressImage(f).catch(() => f);
+    await new Promise((res, rej) => {
+      const tx = db.transaction('shots', 'readwrite');
+      tx.objectStore('shots').add({entryId, blob});
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  }
+}
+async function getShots(entryId){
+  const db = await shotDB();
+  return new Promise(res => {
+    const req = db.transaction('shots').objectStore('shots').index('byEntry').getAll(entryId);
+    req.onsuccess = () => res(req.result || []);
+    req.onerror = () => res([]);
+  });
+}
+async function delShot(sid){
+  const db = await shotDB();
+  return new Promise(res => {
+    const tx = db.transaction('shots', 'readwrite');
+    tx.objectStore('shots').delete(sid);
+    tx.oncomplete = res;
+  });
+}
+async function delShotsFor(entryId){
+  const shots = await getShots(entryId);
+  for (const s of shots) await delShot(s.sid);
+}
+async function renderShots(entryId, container){
+  const shots = await getShots(entryId);
+  container.querySelectorAll('.shot').forEach(n => n.remove());
+  const addBtn = container.querySelector('[data-act=shot]');
+  for (const s of shots){
+    const url = URL.createObjectURL(s.blob);
+    const d = document.createElement('div');
+    d.className = 'shot';
+    d.innerHTML = `<img src="${url}" alt="chart"><button class="sx">✕</button>`;
+    d.querySelector('img').addEventListener('click', () => {
+      $('#viewer img').src = url;
+      $('#viewer').classList.add('open');
+    });
+    d.querySelector('.sx').addEventListener('click', async () => {
+      await delShot(s.sid);
+      renderShots(entryId, container);
+    });
+    container.insertBefore(d, addBtn);
+  }
+}
+$('#shot-input').addEventListener('change', async ev => {
+  if (!shotTarget || !ev.target.files.length) return;
+  await addShots(shotTarget, [...ev.target.files]);
+  ev.target.value = '';
+  renderJournal();
+});
+$('#viewer').addEventListener('click', () => $('#viewer').classList.remove('open'));
+function update(id, patch, rerender=true){
+  const j = loadJ();
+  const e = j.find(x=>x.id===id);
+  if (e) Object.assign(e, patch);
+  saveJ(j);
+  if (rerender) renderJournal();
+}
+$('#btn-export').addEventListener('click', () => {
+  const j = loadJ();
+  if (!j.length) return alert('Nothing to export yet.');
+  const esc = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const rows = [['date','symbol','direction','grade','smt','outcome','r','notes'].join(',')];
+  for (const e of j) rows.push([e.date,e.symbol,e.dir,e.grade,e.smt?'yes':'no',e.outcome,e.r??'',e.notes].map(esc).join(','));
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ifvg_journal.csv';
+  a.click();
+});
+
+// ---------- risk calculator ----------
+function loadR(){ try{ return JSON.parse(localStorage.getItem(LS_R)) || {}; }catch(e){ return {}; } }
+function calcRisk(){
+  const acct = +$('#r-acct').value || 0;
+  const pct = +$('#r-pct').value || 0;
+  const stop = +$('#r-stop').value || 0;
+  const ppv = +$('#r-sym').value;
+  localStorage.setItem(LS_R, JSON.stringify({acct, pct, stop, symIdx: $('#r-sym').selectedIndex}));
+  if (!acct || !pct || !stop){
+    $('#r-contracts').textContent='–'; $('#r-riskusd').textContent='–';
+    $('#r-actual').textContent='–'; $('#r-perct').textContent='–';
+    return;
+  }
+  const riskUsd = acct * pct / 100;
+  const perContract = stop * ppv;
+  const n = Math.floor(riskUsd / perContract);
+  $('#r-contracts').textContent = n;
+  $('#r-riskusd').textContent = '$' + riskUsd.toLocaleString(undefined,{maximumFractionDigits:0});
+  $('#r-actual').textContent = '$' + (n*perContract).toLocaleString(undefined,{maximumFractionDigits:0});
+  $('#r-perct').textContent = '$' + perContract.toLocaleString(undefined,{maximumFractionDigits:0});
+}
+['r-acct','r-pct','r-stop','r-sym'].forEach(id => $('#'+id).addEventListener('input', calcRisk));
+(function(){
+  const r = loadR();
+  if (r.acct) $('#r-acct').value = r.acct;
+  if (r.pct) $('#r-pct').value = r.pct;
+  if (r.stop) $('#r-stop').value = r.stop;
+  if (typeof r.symIdx === 'number') $('#r-sym').selectedIndex = r.symIdx;
+  calcRisk();
+})();
+
+// ---------- service worker ----------
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
